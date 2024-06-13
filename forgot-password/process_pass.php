@@ -7,7 +7,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $confirmPassword = $_POST['confirmPassword'];
 
     // Database connection
-    $conn = mysqli_connect("localhost", "root", "", "db_library_2", 3308);
+    $conn = mysqli_connect("localhost", "root", "root", "db_library_2", 3308);
     if (!$conn) {
         die("Connection failed: " . mysqli_connect_error());
     }
@@ -27,8 +27,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt->bind_result($currentPassword);
         $stmt->fetch();
 
-        // Verify if the old password matches the current password
-        //if ($oldPassword == $currentPassword) {
             // Check if the new password matches the confirm password
             if ($newPassword === $confirmPassword) {
                 // Update the password in the database
@@ -45,8 +43,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             } else {
                 echo '<script>alert("New password and confirm password do not match!");</script>';
             }
-        //} else {
-            //echo '<script>alert("Incorrect old password!");</script>';}
+            
     } else {
         echo "Error retrieving password: " . $conn->error;
     }
@@ -64,7 +61,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VillaReadHub - Settings</title>
+    <title>Change Password</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -85,7 +82,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <img src="../images/lib-icon.png" alt="lib-icon"/>
                 </div>
 
-                <div class="error-con"></div>
+                <div class="error-con">
+                <?php
+                    // Check if an error message is passed in the URL
+                    if (isset($_GET['error'])) {
+                        $error = $_GET['error'];
+                        echo "<p class='error-message'>$error</p>";
+                    }
+                    ?>
+                </div>
                 
                 <div class="form-con">
                 <form id="userProfileForm" action="" method="post">
@@ -109,40 +114,5 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"> </script>
-    <script> 
-        let date = new Date().toLocaleDateString('en-US', {  
-            day:   'numeric',
-            month: 'long',
-            year:  'numeric' ,  
-            weekday: 'long', 
-        });   
-        document.getElementById("currentDate").innerText = date; 
-
-        setInterval( () => {
-            let time = new Date().toLocaleTimeString('en-US',{ 
-            hour: 'numeric',
-            minute: 'numeric', 
-            second: 'numeric',
-            hour12: 'true',
-        })  
-        document.getElementById("currentTime").innerText = time; 
-
-        }, 1000)
-        
-
-        let navItems = document.querySelectorAll(".nav-item");  //adding .active class to navitems 
-        navItems.forEach(item => {
-            item.addEventListener('click', ()=> { 
-                document.querySelector('.active')?.classList.remove('active');
-                item.classList.add('active');
-                
-                
-            })
-            
-        })
-     
-
-
-    </script>
 </body>
 </html>

@@ -8,31 +8,40 @@ session_start();
 require '../vendor/autoload.php'; // Include PHPMailer autoload file
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["sendCode"])) {
-    $conn = mysqli_connect("localhost", "root", "", "db_library_2", 3308); // Database connection
+    $conn = mysqli_connect("localhost", "root", "root", "db_library_2", 3308); // Database connection
 
     if ($conn->connect_error) {
         die("Connection failed: " . $conn->connect_error);
     }
 
-    // Function to validate email format
-    function isValidEmail($email) {
-        return filter_var($email, FILTER_VALIDATE_EMAIL);
-    }
-    $email = $_POST["email"];
-    // Function to check if email exists in database
-    function emailExistsInDatabase($conn, $email) {
-        $stmt = $conn->prepare("SELECT E_mail FROM tbl_employee WHERE E_mail = ?");
-        $stmt->bind_param("s", $email);
-        $stmt->execute();
-        $stmt->store_result();
-        $count = $stmt->num_rows;
-        $stmt->close();
-        return $count > 0;
+
+      // Function to generate a 6-digit numeric token and update it in the database
+      function generateNumericToken($conn, $email) {
+        $minValue = 100000; // Minimum 6-digit number
+        $maxValue = 999999; // Maximum 6-digit number
+        $token = random_int($minValue, $maxValue);
+
+        $stmt = $conn->prepare("UPDATE tbl_employee SET token = ? WHERE E_mail = ?");
+        if ($stmt === false) {
+            // Handle the error if the prepare statement fails
+            die("Error preparing statement: " . $conn->error);
+        }
+
+        // Bind parameters to the prepared statement
+        $stmt->bind_param("ss", $token, $email); // Use "ss" for two string parameters
+
+        // Execute the statement
+        if ($stmt->execute()) {
+            return str_pad($token, 6, '0', STR_PAD_LEFT); // Return the formatted token
+        } else {
+            // Handle the error if execution fails
+            die("Error updating token: " . $stmt->error);
+        }
     }
 
-    // Function to send email using PHPMailer
-   
+ // Function to send email using PHPMailer
     function sendTokenEmail($email, $token) {
+      
         $mail = new PHPMailer(true); // Create a new PHPMailer instance
         try {
             // SMTP configuration for Gmail
@@ -58,54 +67,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["sendCode"])) {
             exit(); // Exit after redirection
 
         } catch (Exception $e) {
-           
             echo "Error sending email: {$mail->ErrorInfo}";
-        }
-     //  header("Location: changepass.php");
+        } 
         exit(); 
     }
-    
-   
-      // Function to generate a 6-digit numeric token and update it in the database
-      function generateNumericToken($conn, $email) {
-        $minValue = 100000; // Minimum 6-digit number
-        $maxValue = 999999; // Maximum 6-digit number
-        $token = random_int($minValue, $maxValue);
 
-        $stmt = $conn->prepare("UPDATE tbl_employee SET token = ? WHERE E_mail = ?");
-        if ($stmt === false) {
-            // Handle the error if the prepare statement fails
-            die("Error preparing statement: " . $conn->error);
-        }
+    $email = $_POST["email"];
+// Prepare SQL statement
+$stmt = $conn->prepare("SELECT E_mail FROM tbl_employee WHERE E_mail = ?");
+$stmt->bind_param("s", $email); // Bind the email parameter
+$stmt->execute(); // Execute the query
+$stmt->store_result(); // Store the result
 
-        // Bind parameters to the prepared statement
-        $stmt->bind_param("ss", $token, $email); // Use "ss" for two string parameters
-
-        // Execute the statement
-        if ($stmt->execute()) {
-            return str_pad($token, 6, '0', STR_PAD_LEFT); // Return the formatted token
-        } else {
-            // Handle the error if execution fails
-            die("Error updating token: " . $stmt->error);
-        }
-    }
-
-
-    if (isValidEmail($email) && emailExistsInDatabase($conn, $email)) {
-        $token = generateNumericToken($conn, $email); // Call generateNumericToken with the correct arguments
-        if ($token !== false) {
-            // Token generation and update successful, proceed with sending the email
-            sendTokenEmail($email, $token);
-        } else {
-            echo "<p>Error generating token or updating database.</p>";
-        }
+// Check if any rows were returned
+if ($stmt->num_rows > 0) {
+    // Email exists in the database, proceed with token generation and sending email
+    $token = generateNumericToken($conn, $email); // Call generateNumericToken with the correct arguments
+    if ($token !== false) {
+        // Token generation and update successful, proceed with sending the email
+        sendTokenEmail($email, $token);
     } else {
-        echo "<p>Invalid email or email does not exist in the database.</p>";
+        echo "<p>Error generating token or updating database.</p>";
     }
+} else {
+    // If email does not exist in the database
+    header("Location: forgot_password.php?error=Invalid_Email");
+    exit();
+}
+
+   
+   
+
+  
     
     // Close database connection
     $conn->close();
-    header("Location: changepass.php");
     exit(); // or die(); 
 }
 ?>
@@ -138,34 +134,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["sendCode"])) {
             <div class="form-sec col-5">
                 <div class="title">
                     <h1><strong>Villa<span>Read</span>Hub</strong></h1>
-                    <img src="../images/lib-icon.png" alt="lib-icon"/>
+                <img src="../images/lib-icon.png" alt="lib-icon"/>
                 </div>
 
-                <div class="error-con"></div>
-                
-                <div class="form-con">
-                    <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="POST">  
-                        <label>Email Address</label><br/>
-                        <input type="email" name="email" id="Email" required>
-                        <br/><br/>  
-                        <div class="btn-container row">
-                            <button class="button" name="sendCode" type="submit">Send Code</button> 
-                            <a href="../index.php">Cancel</a>
-                        </div>
-                    </form>
+                <div class="error-con">
+                <?php
+                    // Check if an error message is passed in the URL
+                    if (isset($_GET['error'])) {
+                        $error = $_GET['error'];
+                        echo "<p class='error-message'>$error</p>";
+                    }
+                    ?>
+               
                 </div>
-        </div>
+                <div class="form-con">
+        <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="POST">  
+            <label>Email Address</label><br/>
+            <input type="email" name="email" id="Email" required>
+            <br/><br/>  
+            <div class="btn-container row">
+                <button class="button" name="sendCode" type="submit">Send Code</button> 
+                <a href="../index.php">Cancel</a>
+            </div>
+        </form>
     </div>
 
    
 
                     
-                    
+                    </form>
+                </div>
                 
-                
-            
-        
-    
+            </div>
+        </div>
+    </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"> </script>
   
